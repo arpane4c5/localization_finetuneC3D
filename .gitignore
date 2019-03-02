@@ -1,0 +1,4 @@
+numpy_vids_112x112_sc032/
+*.pyc
+*.pkl
+log/
