@@ -15,8 +15,8 @@ import json
 import os
 
 # Local Paths
-LABELS = "/home/hadoop/VisionWorkspace/Cricket/scripts/supporting_files/sample_set_labels/sample_labels_shots/ICC WT20"
-DATASET = "/home/hadoop/VisionWorkspace/VideoData/sample_cricket/ICC WT20"
+LABELS = "/home/arpan/VisionWorkspace/Cricket/scripts/supporting_files/sample_set_labels/sample_labels_shots/ICC WT20"
+DATASET = "/home/arpan/VisionWorkspace/VideoData/sample_cricket/ICC WT20"
 
 # Server Paths
 if os.path.exists("/opt/datasets/cricket/ICC_WT20"):
@@ -31,7 +31,7 @@ def calculate_tIoU(gt_dir, shots_dict):
     traversed = 0
     
     # match the val/test keys with the filenames present in the LABELS folder
-    for sf in shots_dict.keys():
+    for sf in list(shots_dict.keys()):
         k = ((sf.split("/")[1]).rsplit(".", 1)[0]) + ".json"
         labelfile = os.path.join(gt_dir, k)
         
@@ -39,10 +39,10 @@ def calculate_tIoU(gt_dir, shots_dict):
         with open(labelfile, 'r') as fp:
             vid_gt = json.load(fp)
             
-        vid_key = vid_gt.keys()[0]      # only one key in dict is saved
+        vid_key = list(vid_gt.keys())[0]      # only one key in dict is saved
         gt_list = vid_gt[vid_key]       # list of tuples [[preFNum, postFNum], ...]
-        test_list = shots_dict[vid_key]
-        print "Done "+str(traversed)+" : "+vid_key
+        test_list = shots_dict[vid_key]["segments"]
+        print("Done "+str(traversed)+" : "+vid_key)
         # calculate tiou for the video vid_key
         vid_tiou = get_vid_tiou(gt_list, test_list)
         # vid_tiou weighted with no of ground truth segments
@@ -50,9 +50,9 @@ def calculate_tIoU(gt_dir, shots_dict):
         tot_segments += len(gt_list)
         traversed += 1
     
-    print "Total segments : " + str(tot_segments)
-    print "Total_tiou (all vids) : " + str(tot_tiou)
-    print "Weighted Averaged TIoU  : " + str(tot_tiou/tot_segments)
+    print("Total segments : " + str(tot_segments))
+    print("Total_tiou (all vids) : " + str(tot_tiou))
+    print("Weighted Averaged TIoU  : " + str(tot_tiou/tot_segments))
     
     return (tot_tiou/tot_segments)
 
@@ -83,7 +83,7 @@ def get_vid_tiou(gt_list, test_list):
         tiou_all_test += max_test_shot
     
     vid_tiou = ((tiou_all_gt/N_gt)+(tiou_all_test/M_test))/2.
-    print "TIoU for video : "+str(vid_tiou)
+    print("TIoU for video : "+str(vid_tiou))
     return vid_tiou
 
 # calculate iou (using frame counts) between two segments

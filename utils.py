@@ -375,10 +375,12 @@ def filter_action_segments(shots_dict, epsilon=10):
     filtered_shots = {}
     for k,v in shots_dict.items():
         vsegs = []
-        for segment in v:
+        vscores = []
+        for idx, segment in enumerate(v["segments"]):
             if (segment[1]-segment[0] >= epsilon):
                 vsegs.append(segment)
-        filtered_shots[k] = vsegs
+                vscores.append(v["scores"][idx])
+        filtered_shots[k] = {"segments":vsegs, "scores":vscores}
     return filtered_shots
 
 # function to remove the non-action segments that have less than "epsilon" frames.
