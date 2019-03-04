@@ -1,4 +1,6 @@
 numpy_vids_112x112_sc032/
+c3dFinetuned_*/
 *.pyc
 *.pkl
 log/
+predicted_localizations*.json

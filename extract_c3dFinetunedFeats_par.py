@@ -307,7 +307,7 @@ if __name__=='__main__':
     # sliding the window of size 16 on the GPU. The model is saved on the GPU
     # initially and a forward pass through the network gives the FC7 features vector.
     #
-    # On GPU: Serial Execution time(26 vids) : 14497.0 sec
+    # On GPU: Serial Execution time(26 vids) : 14675.43 sec
     #
     # Parallel Implementation: 5 cores 5 batch size
     # Execution time (26 vids) : 43924.76 sec
