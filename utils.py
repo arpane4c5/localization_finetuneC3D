@@ -247,7 +247,7 @@ def getBatchFeatures(features, videoFiles, sequences, motion=True):
         
     return batch_feats
 
-def getC3DFeatures(features, videoFiles, sequences):
+def getC3DFeatures(features, videoFiles, sequences, c3dWinSize=16):
     """
     Select the batch frames from the dictionary of numpy frames (corresponding
     to the given sequences) and extract C3D feature vector from them (fc7 layer)
@@ -266,13 +266,13 @@ def getC3DFeatures(features, videoFiles, sequences):
         start_frame = sequences[0][i]   # starting point of sequences in video
         end_frame = sequences[1][i]     # end point
         # verify
-        assert (end_frame-start_frame+1)>=16, "SEQ_SIZE should be greater than 16"
+        assert (end_frame-start_frame+1)>=c3dWinSize, "SEQ_SIZE should be greater than 16"
         
         # Load features
         # (N-16+1 x 1 x 4096) sized numpy array
         vidFeats = features[videoFile]  
         # extract (seq_size-15) x 1 x 4096 matrix and append to 
-        vid_feat_seq = vidFeats[start_frame:(end_frame-15+1), :, :]
+        vid_feat_seq = vidFeats[start_frame:(end_frame-(c3dWinSize-1)+1), :, :]
         # dissolve the centre single-dimension, result is list of (seq_size-15) x 4096 
         vid_feat_seq = np.squeeze(vid_feat_seq, axis=1)
         batch_feats.append(vid_feat_seq)
@@ -281,7 +281,7 @@ def getC3DFeatures(features, videoFiles, sequences):
 
 
 # should be called only for seq_len >=16
-def make_c3d_variables(feats, labels, use_gpu=False):
+def make_c3d_variables(feats, labels, c3dWinSize=16, use_gpu=False):
     # Create the input tensors and target label tensors
     #for item in feats:
         # item is a list with (sequence of) 9 1D vectors (each of 1152 size)
@@ -299,7 +299,8 @@ def make_c3d_variables(feats, labels, use_gpu=False):
     seq_size = len(labels)  
     for i in range(labels[0].size(0)):
         lbls = [y[i] for y in labels]      # get labels of frames (size seq_size)
-        temp = [1 if sum(lbls[s:e])>=8 else 0 for s,e in enumerate(range(16, seq_size+1))]
+        temp = [1 if sum(lbls[s:e])>=int(c3dWinSize/2) else 0 \
+                         for s,e in enumerate(range(c3dWinSize, seq_size+1))]
         target.extend(temp)   # for c3d
         
     # Form a wrap into a tensor variable as B X S X I

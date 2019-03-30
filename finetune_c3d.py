@@ -26,6 +26,7 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import StepLR
 from collections import defaultdict
+from get_localizations import getScoredLocalizations
 
 # Local Paths
 LABELS = "/home/arpan/VisionWorkspace/Cricket/scripts/supporting_files/sample_set_labels/sample_labels_shots/ICC WT20"
@@ -40,14 +41,14 @@ if os.path.exists("/opt/datasets/cricket/ICC_WT20"):
 BATCH_SIZE = 16     # for 32 out of memory, for 16 it runs
 N_EPOCHS = 30
 INP_VEC_SIZE = None
-SEQ_SIZE = 16   # has to >=16 (ie. the number of frames used for c3d input)
+SEQ_SIZE = 23   # has to >=16 (ie. the number of frames used for c3d input)
 threshold = 0.5
 seq_threshold = 0.5
-data_dir = "numpy_vids_112x112_sc032"
+data_dir = "numpy_vids_112x112"
 wts_path = 'c3d.pickle'
 #wts_path = 'log/c3d_finetune_conv5b_FC678_ep10_w16_SGD.pt'
 #chkpoint = 'c3d_finetune_FC78_ep5_w16_SGD.pt'
-mod_name = "log/c3d_finetune_conv5b_FC678_ep"
+mod_name = "log_half_center_seq23/c3d_finetune_conv5b_FC678_ep"
 
 
 # takes a model to train along with dataset, optimizer and criterion
@@ -101,10 +102,10 @@ def train(trainFrames, valFrames, model, datasets_loader, optimizer, \
                     optimizer.zero_grad()
                     loss.backward()
                     optimizer.step()
-                if (i+1) == 2000:
-                    break
-#            accuracy = fabs(accuracy)/len(datasets_loader[phase].dataset)
-            accuracy = fabs(accuracy)/(BATCH_SIZE*(i+1))
+#                if (i+1) == 2000:
+#                    break
+            accuracy = fabs(accuracy)/len(datasets_loader[phase].dataset)
+#            accuracy = fabs(accuracy)/(BATCH_SIZE*(i+1))
             training_stats[epoch][phase]['loss'] = net_loss
             training_stats[epoch][phase]['acc'] = accuracy
             training_stats[epoch][phase]['lr'] = optimizer.param_groups[0]['lr']
@@ -405,23 +406,15 @@ if __name__=='__main__':
 #    
 #    with open("val_keys.pkl", "rb") as fp:
 #        val_keys = pickle.load(fp)
-    
-    from get_localizations import getLocalizations
-    from get_localizations import getVidLocalizations
+        
 
     # [4949, 4369, 4455, 4317, 4452]
     #predictions = [p.cpu() for p in predictions]  # convert to CPU tensor values
-    localization_dict = getLocalizations(val_keys, predictions, BATCH_SIZE, \
+    localization_dict = getScoredLocalizations(val_keys, predictions, BATCH_SIZE, \
                                          threshold, seq_threshold)
 
     print(localization_dict)
     
-#    for i in range(0,101,10):
-#        filtered_shots = filter_action_segments(localization_dict, epsilon=i)
-#        filt_shots_filename = "predicted_localizations_th0_5_filt"+str(i)+".json"
-#        with open(filt_shots_filename, 'w') as fp:
-#            json.dump(filtered_shots, fp)
-
     # Apply filtering    
     i = 60  # optimum
     filtered_shots = utils.filter_action_segments(localization_dict, epsilon=i)
