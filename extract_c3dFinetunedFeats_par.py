@@ -30,7 +30,7 @@ def extract_c3d_all(model, srcFolderPath, destFolderPath, onGPU=True, depth=16, 
     srcFolderPath: str
         path to folder which contains the videos
     destFolderPath: str
-        path to store the optical flow values in .bin files
+        path to store the optical flow values in .npy files
     onGPU: boolean
         True enables a serial extraction by sending model and data to GPU,
         False enables a parallel extraction on the different CPU cores.
@@ -191,13 +191,12 @@ def getC3DFrameFeats(m, srcVideoPath, onGPU, depth):
         return None
     
     W, H = (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
-    totalFrames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
     frameCount = 0
     features_current_file = []
     
-    max_height = 112
-    max_width = 112
-    scaling_factor=0.32  # for 360 x 640 frame size
+#    max_height = 112
+#    max_width = 112
+#    scaling_factor=0.32  # for 360 x 640 frame size
     
     #ret, prev_frame = cap.read()
     assert cap.isOpened(), "Capture object does not return a frame!"
@@ -211,9 +210,9 @@ def getC3DFrameFeats(m, srcVideoPath, onGPU, depth):
             break
         
         # resize to 180 X 320 and taking centre crop of 112 x 112
-        #curr_frame = cv2.resize(curr_frame, (W/2, H/2), cv2.INTER_AREA)
-        curr_frame = cv2.resize(curr_frame, None, fx=scaling_factor, \
-                                fy=scaling_factor, interpolation=cv2.INTER_AREA)
+        curr_frame = cv2.resize(curr_frame, (W/2, H/2), cv2.INTER_AREA)
+#        curr_frame = cv2.resize(curr_frame, None, fx=scaling_factor, \
+#                                fy=scaling_factor, interpolation=cv2.INTER_AREA)
         (h, w) = curr_frame.shape[:2]
         #print("Size : {}".format((h,w)))
         # take the centre crop size is 112 x 112 x 3
@@ -272,34 +271,29 @@ if __name__=='__main__':
     # False if we want a parallel extraction on the CPU cores.
     
     # the model weights file
-    model = 'log/c3d_finetune_conv5b_FC678_ep30_w16_SGD.pt'
+    model = 'log_half_center_seq23/c3d_finetune_conv5b_FC678_ep30_w23_SGD.pt'
     
     #model = c3d.C3D()
     
     ###########################################################################
     
-    # get network pretrained model
-    #model.load_state_dict(torch.load('c3d.pickle'))
-    #if onGPU:
-    #    model.cuda()
+    for SEQ_SIZE in range(16,24):
         
-    #model.eval()
-
-    # The srcPath should have subfolders that contain the training, val, test videos.
-    #srcPath = '/home/arpan/DATA_Drive/Cricket/dataset_25_fps'
-    srcPath = "/home/arpan/VisionWorkspace/VideoData/sample_cricket/ICC WT20"
-    destPath = "/home/arpan/VisionWorkspace/Cricket/localization_finetuneC3D/c3dFinetuned_feats_16"
-    if not os.path.exists(srcPath):
-        srcPath = "/opt/datasets/cricket/ICC_WT20"
-        destPath = "/home/arpan/VisionWorkspace/localization_finetuneC3D/c3dFinetuned_feats_16"
-    
-    
-    print("Using the GPU : "+str(onGPU))
-    start = time.time()
-    nfiles = extract_c3d_all(model, srcPath, destPath, onGPU=onGPU, depth=16, stop='all')
-    end = time.time()
-    print("Total no. of files traversed : "+str(nfiles))
-    print("Total execution time : "+str(end-start))
+        # The srcPath should have subfolders that contain the training, val, test videos.
+        #srcPath = '/home/arpan/DATA_Drive/Cricket/dataset_25_fps'
+        srcPath = "/home/arpan/VisionWorkspace/VideoData/sample_cricket/ICC WT20"
+        destPath = "/home/arpan/VisionWorkspace/Cricket/localization_finetuneC3D/c3dFinetuned_feats_"+str(SEQ_SIZE)
+        if not os.path.exists(srcPath):
+            srcPath = "/opt/datasets/cricket/ICC_WT20"
+            destPath = "/home/arpan/DATA_Drive/Cricket/extracted_feats/c3dFinetuned_feats_"+str(SEQ_SIZE)
+        
+        print("SEQSIZE = {}".format(SEQ_SIZE))
+        print("Using the GPU : "+str(onGPU))
+        start = time.time()
+        nfiles = extract_c3d_all(model, srcPath, destPath, onGPU=onGPU, depth=SEQ_SIZE, stop='all')
+        end = time.time()
+        print("Total no. of files traversed : "+str(nfiles))
+        print("Total execution time : "+str(end-start))
     
     ###########################################################################
     # Results:
