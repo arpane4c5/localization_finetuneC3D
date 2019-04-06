@@ -45,33 +45,41 @@ def extract_c3d_all(model, srcFolderPath, destFolderPath, onGPU=True, depth=16, 
         no of videos traversed successfully
     """
     # iterate over the subfolders in srcFolderPath and extract for each video 
-    vfiles = os.listdir(srcFolderPath)
+    sfp_lst = os.listdir(srcFolderPath)
     
     infiles, outfiles, nFrames = [], [], []
     
-    traversed = 0
-    # create destination path to store the files
-    if not os.path.exists(destFolderPath):
-        os.makedirs(destFolderPath)
+    traversed_tot = 0
             
     # iterate over the video files inside the directory sf
-    for vid in vfiles:
-        if os.path.isfile(os.path.join(srcFolderPath, vid)) and vid.rsplit('.', 1)[1] in {'avi', 'mp4'}:
-            infiles.append(os.path.join(srcFolderPath, vid))
-            outfiles.append(os.path.join(destFolderPath, vid.rsplit('.', 1)[0]+".npy"))
-            nFrames.append(getTotalFramesVid(os.path.join(srcFolderPath, vid)))
-            # save at the destination, if extracted successfully
-            traversed += 1
-#            print "Done "+str(traversed_tot+traversed)+" : "+sf+"/"+vid
-                    
+    for sf in sfp_lst:
+        traversed = 0
+        sub_src_path = os.path.join(srcFolderPath, sf)
+        sub_dest_path = os.path.join(destFolderPath, sf)
+        # create destination path to store the files
+        if not os.path.exists(sub_dest_path):
+            os.makedirs(sub_dest_path)
+
+        vfiles = os.listdir(sub_src_path)
+        
+        for vid in vfiles:
+            if os.path.isfile(os.path.join(sub_src_path, vid)) and vid.rsplit('.', 1)[1] in {'avi', 'mp4'}:
+                infiles.append(os.path.join(sub_src_path, vid))
+                outfiles.append(os.path.join(sub_dest_path, vid.rsplit('.', 1)[0]+".npy"))
+                nFrames.append(getTotalFramesVid(os.path.join(sub_src_path, vid)))
+                # save at the destination, if extracted successfully
+                traversed += 1
+    #            print "Done "+str(traversed_tot+traversed)+" : "+sf+"/"+vid
+                        
                 # to stop after successful traversal of 2 videos, if stop != 'all'
-            if stop != 'all' and traversed == stop:
-                break
+                if stop != 'all' and traversed == stop:
+                    break
                     
-    print("No. of files to be written to destination : "+str(traversed))
-    if traversed == 0:
+        traversed_tot += traversed
+    print("No. of files to be written to destination : "+str(traversed_tot))
+    if traversed_tot == 0:
         print("Check the structure of the dataset folders !!")
-        return traversed
+        return traversed_tot
     ###########################################################################
     #### Form the pandas Dataframe and parallelize over the files.
     filenames_df = pd.DataFrame({"infiles":infiles, "outfiles": outfiles, "nframes": nFrames})
@@ -91,6 +99,7 @@ def extract_c3d_all(model, srcFolderPath, destFolderPath, onGPU=True, depth=16, 
             if feat is not None:
                 np.save(filenames_df['outfiles'][i], feat)
                 print("Written "+str(i)+" : "+filenames_df['outfiles'][i])
+            #print("{} : {} : {}".format(i, filenames_df['outfiles'][i], filenames_df['nframes'][i]))
                 
             e = time.time()
             print("Execution Time : "+str(e-st))
@@ -126,7 +135,7 @@ def extract_c3d_all(model, srcFolderPath, destFolderPath, onGPU=True, depth=16, 
     
     ###########################################################################
 #    print len(batch_diffs)
-    return traversed
+    return traversed_tot
 
 
 def getTotalFramesVid(srcVideoPath):
@@ -180,7 +189,7 @@ def getC3DFrameFeats(m, srcVideoPath, onGPU, depth):
     model.load_state_dict(torch.load(m))
     
     if onGPU:
-        model.cuda(1)
+        model.cuda()
     model.eval()
     # get the VideoCapture object
     cap = cv2.VideoCapture(srcVideoPath)
@@ -227,13 +236,13 @@ def getC3DFrameFeats(m, srcVideoPath, onGPU, depth):
                 X = np.float32(X)
                 X = torch.from_numpy(X)
                 if onGPU:
-                    X = X.cuda(1)
+                    X = X.cuda()
             else:   # sliding the window (taking 15 last frames and append next)
                     # Adding a new dimension and concat on first axis
                 curr_frame = np.float32(curr_frame)
                 curr_frame = torch.from_numpy(curr_frame)
                 if onGPU:
-                    curr_frame = curr_frame.cuda(1)
+                    curr_frame = curr_frame.cuda()
                 #X = np.concatenate((X[1:], curr_frame[None, :]), axis=0)
                 X = torch.cat([X[1:], curr_frame[None, :]])
         
@@ -267,6 +276,7 @@ def getC3DFrameFeats(m, srcVideoPath, onGPU, depth):
 
 
 if __name__=='__main__':
+    DEPTH = 16
     onGPU = True    # Flag True if we want a GPU extract (Serial),
     # False if we want a parallel extraction on the CPU cores.
     
@@ -277,29 +287,21 @@ if __name__=='__main__':
     
     ###########################################################################
     
-    for SEQ_SIZE in range(17, 18):
-        
-        # The srcPath should have subfolders that contain the training, val, test videos.
-        #srcPath = '/home/arpan/DATA_Drive/Cricket/dataset_25_fps'
-#        srcPath = "/home/arpan/VisionWorkspace/VideoData/sample_cricket/ICC WT20"
-#        destPath = "/home/arpan/VisionWorkspace/Cricket/localization_finetuneC3D/c3dFinetuned_feats_"+str(SEQ_SIZE)
-#        if not os.path.exists(srcPath):
-#            srcPath = "/opt/datasets/cricket/ICC_WT20"
-#            destPath = "/home/arpan/DATA_Drive/Cricket/extracted_feats/c3dFinetuned_feats_"+str(SEQ_SIZE)
-        srcPath = '/home/arpan/VisionWorkspace/Cricket/dataset_25_fps_train_set'
-        destPath = "/home/arpan/VisionWorkspace/Cricket/extracted_feats/c3dFinetuned_mainDataset_train_feats_"+str(SEQ_SIZE)
-        if not os.path.exists(srcPath):
-            srcPath = "/home/arpan/DATA_Drive/Cricket/dataset_25_fps_train_set"
-            destPath = "/home/arpan/DATA_Drive/Cricket/extracted_feats/c3dFinetuned_mainDataset_train_feats_"+str(SEQ_SIZE)
 
-        
-        print("SEQSIZE = {}".format(SEQ_SIZE))
-        print("Using the GPU : "+str(onGPU))
-        start = time.time()
-        nfiles = extract_c3d_all(model, srcPath, destPath, onGPU=onGPU, depth=SEQ_SIZE, stop='all')
-        end = time.time()
-        print("Total no. of files traversed : "+str(nfiles))
-        print("Total execution time : "+str(end-start))
+    # The srcPath should have subfolders that contain the training, val, test videos.
+    srcPath = '/home/arpan/VisionWorkspace/Cricket/dataset_25_fps_train_set'
+    destPath = "/home/arpan/VisionWorkspace/Cricket/extracted_feats/c3dFinetuned_mainDataset_train_feats_"+str(DEPTH)
+    if not os.path.exists(srcPath):
+        srcPath = "/home/arpan/DATA_Drive/Cricket/dataset_25_fps_train_set"
+        destPath = "/home/arpan/DATA_Drive/Cricket/extracted_feats/c3dFinetuned_mainDataset_train_feats_"+str(DEPTH)
+    
+    
+    print("Using the GPU : "+str(onGPU))
+    start = time.time()
+    nfiles = extract_c3d_all(model, srcPath, destPath, onGPU=onGPU, depth=DEPTH, stop='all')
+    end = time.time()
+    print("Total no. of files traversed : "+str(nfiles))
+    print("Total execution time : "+str(end-start))
     
     ###########################################################################
     # Results:
